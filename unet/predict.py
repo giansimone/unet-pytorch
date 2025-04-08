@@ -1,53 +1,62 @@
 """
 Module to make predictions using the U-Net model.
 """
-import os
-
+import numpy as np
 import torch
 
 from unet.model import UNet
 from unet.utils import im_to_tensor
 
 
-def predict(path_model: str, im_path: str) -> torch.Tensor:
-    """Make a prediction using the U-Net.
+class UNetPredictor:
+    """Predictor class for the U-Net model."""
 
-    Args:
-        path_model: Path to the model weights.
-        im_path: Path to the image.
-    Returns:
-        pred: Prediction done for a single image.
-    """
-    if torch.backends.mps.is_available():
-        device = torch.device('mps')
-    else:
-        device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    def __init__(self, model_file: str) -> None:
+        """Initialise the U-Net predictor.
 
-    # Load image on `device`
-    im = im_to_tensor(im_path)
-    im = im.unsqueeze(0)
-    im = im.to(device)
+        Args:
+            path: Path to the model.
+        """
+        self.model_file = model_file
 
-    # Build the model and load the weights
-    model = UNet().to(device)
-    model.load_state_dict(
-        torch.load(os.path.join(path_model, 'weights.pth'), map_location=device)
-    )
+        if torch.backends.mps.is_available():
+            self.device = torch.device('mps') # Apple silicon
+        else:
+            self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-    # Evaluate the model
-    model.eval()
-    with torch.no_grad():
-        pred = model(im)
+        self.model = UNet().to(self.device)
+        self.model.load_state_dict(
+            torch.load(self.model_file, map_location=self.device)['model_weights']
+        )
+        self.model.eval()
 
-    return pred.squeeze(0).detach().cpu().numpy()
+    def predict(self, image_file: str) -> np.ndarray:
+        """Make a prediction using the U-Net.
+        Args:
+            image_file: Path to the image.
+        Returns:
+            pred: Prediction done for a single image.
+        """
+        im = im_to_tensor(image_file)
+        im = im.unsqueeze(0)
+        im = im.to(self.device)
 
+        with torch.no_grad():
+            pred = self.model(im)
 
-def mask_from_pred(pred: torch.Tensor) -> torch.Tensor:
-    """Calculate a mask from the prediction.
-    Args:
-        pred: Prediction done for a single image.
-    Returns:
-        mask: Mask calculated from the prediction.
-    """
+        return pred.squeeze(0).argmax(0).detach().cpu().numpy()
 
-    return pred.argmax(0)
+    def predict_batch(self, image_files: list[str]) -> list[np.ndarray]:
+        """Make predictions for a batch of images.
+        
+        Args:
+            image_files: List of paths to the images.
+        Returns:
+            preds: List of predictions for each image.
+        """
+        preds = []
+        for image_file in image_files:
+            pred = self.predict(image_file)
+            preds.append(pred)
+
+        return preds
