@@ -1,18 +1,20 @@
 [tool.poetry]
-name = "unet-pytorch"
+name = "unet"
 version = "0.4.2"
 description = "PyTorch implementation of a convolutional neural network (U-Net)"
 authors = ["Giansimone Perrino <hello@giansimone.dev>"]
+license = "MIT"
 readme = "README.md"
 
 [tool.poetry.dependencies]
-python = "^3.12"
+python = "^3.11"
 numpy = "^2.2.4"
 torch = "^2.6.0"
 scikit-image = "^0.25.2"
 torchvision = "^0.21.0"
 matplotlib = "^3.10.1"
 notebook = "^7.3.3"
+scikit-learn = "^1.6.1"
 
 
 [build-system]
