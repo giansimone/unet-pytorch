@@ -1,10 +1,14 @@
 [tool.poetry]
-name = "unet"
-version = "0.4.2"
+name = "unet-pytorch"
+version = "0.4.3"
 description = "PyTorch implementation of a convolutional neural network (U-Net)"
 authors = ["Giansimone Perrino <hello@giansimone.dev>"]
 license = "MIT"
 readme = "README.md"
+repository = "https://github.com/giansimone/unet-pytorch"
+packages = [
+    { include = "unet_pytorch" },
+]
 
 [tool.poetry.dependencies]
 python = "^3.11"
@@ -16,6 +20,9 @@ matplotlib = "^3.10.1"
 notebook = "^7.3.3"
 scikit-learn = "^1.6.1"
 
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^8.3.5"
 
 [build-system]
 requires = ["poetry-core"]

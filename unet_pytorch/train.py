@@ -2,12 +2,32 @@
 Module to train the U-Net model.
 """
 import os
+import dataclasses
 
 import torch
 from torch import nn
 
-from unet.model import UNet
-from unet.data import UNetDataset
+from unet_pytorch.model import UNet
+from unet_pytorch.data import UNetDataset, UNetDataLoader
+
+
+@dataclasses.dataclass(init=False)
+class UNetTrainingConfig:
+    """Configuration class for U-Net training components."""
+
+    def __init__(self, model: UNet, lr: float = 1e-4, weight_decay: float = 1e-5):
+        """Initialise the U-Net training configuration."""
+        self.model = model
+        self.lr = lr
+        self.weight_decay = weight_decay
+
+        self.loss_fn = nn.CrossEntropyLoss()
+        self.optimiser = torch.optim.AdamW(
+            self.model.parameters(), lr=lr, weight_decay=weight_decay
+        )
+        self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
+            self.optimiser, mode='min', patience=5, factor=0.5
+        )
 
 
 class UNetTrainer:
@@ -15,24 +35,30 @@ class UNetTrainer:
 
     def __init__(
             self,
-            paths: dict[str, str],
-            batch_size: int=4
+            inputs_path: str,
+            targets_path: str,
+            model_path: str,
+            batch_size: int = 4
         ) -> None:
         """Initialise the U-Net trainer.
 
         Args:
-            paths: Dictionary containing paths for input, target images, and model checkpoints.
-                - 'inputs': Path to input images.
-                - 'targets': Path to target images.
-                - 'model': Path to save model checkpoints.
+            inputs_path: Path to the input images.
+            targets_path: Path to the target images.
+            model_path: Path to save the model checkpoints.
             batch_size: Batch size for training.
         """
-        self.paths = paths
+        self.paths = {
+            'inputs': inputs_path,
+            'targets': targets_path,
+            'model': model_path,
+        }
         self.batch_size = batch_size
 
-        self.unet_dataset = UNetDataset(self.paths['inputs'], self.paths['targets'])
-        self.unet_dataset.set_train_loader(self.batch_size)
-        self.unet_dataset.set_val_loader(self.batch_size)
+        self.dataset = UNetDataset(self.paths['inputs'], self.paths['targets'])
+        self.data_loader = UNetDataLoader(
+            self.dataset, self.batch_size
+        )
 
         if torch.backends.mps.is_available():
             self.device = torch.device('mps') # Apple silicon
@@ -41,11 +67,7 @@ class UNetTrainer:
 
         self.model = UNet().to(self.device)
 
-        self.loss_fn = nn.CrossEntropyLoss()
-        self.optimiser = torch.optim.AdamW(self.model.parameters(), lr=1e-4, weight_decay=1e-5)
-        self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
-            self.optimiser, mode='min', patience=5, factor=0.5
-        )
+        self.training_config = UNetTrainingConfig(self.model)
 
         self.history = {'train_loss': [], 'val_loss': []}
 
@@ -55,7 +77,7 @@ class UNetTrainer:
         Returns:
             Average loss for the epoch.
         """
-        train_loader = self.unet_dataset.get_train_loader
+        train_loader = self.data_loader.get_train_loader
         self.model.train()
         total_loss = 0.0
         for x, y in train_loader:
@@ -63,11 +85,11 @@ class UNetTrainer:
             y = y.to(self.device)
 
             pred = self.model(x)
-            loss = self.loss_fn(pred, y.squeeze(1).long())
+            loss = self.training_config.loss_fn(pred, y.squeeze(1).long())
 
-            self.optimiser.zero_grad()
+            self.training_config.optimiser.zero_grad()
             loss.backward()
-            self.optimiser.step()
+            self.training_config.optimiser.step()
 
             total_loss += loss.item() * x.size(0)
 
@@ -79,7 +101,7 @@ class UNetTrainer:
         Returns:
             Average loss for the validation set.
         """
-        val_loader = self.unet_dataset.get_val_loader
+        val_loader = self.data_loader.get_val_loader
         self.model.eval()
         total_loss = 0.0
         with torch.no_grad():
@@ -88,13 +110,13 @@ class UNetTrainer:
                 y = y.to(self.device)
 
                 pred = self.model(x)
-                loss = self.loss_fn(pred, y.squeeze(1).long())
+                loss = self.training_config.loss_fn(pred, y.squeeze(1).long())
 
                 total_loss += loss.item() * x.size(0)
 
         return total_loss / len(val_loader.dataset)
 
-    def train(self, epochs: int=50, save_interval: int=5) -> None:
+    def train(self, epochs: int=50, save_interval: int=10) -> None:
         """Train the U-Net model.
 
         Args:
@@ -109,7 +131,7 @@ class UNetTrainer:
             val_loss = self._evaluate()
             self.history['val_loss'].append(val_loss)
 
-            self.scheduler.step(val_loss)
+            self.training_config.scheduler.step(val_loss)
 
             print(
                 f'Epoch {epoch + 1}/{epochs}, '
@@ -138,7 +160,7 @@ class UNetTrainer:
         torch.save({
             'epoch': epoch + 1,
             'model_weights': self.model.state_dict(),
-            'optimiser_weights': self.optimiser.state_dict(),
+            'optimiser_weights': self.training_config.optimiser.state_dict(),
             'loss': val_loss,
             'history': self.history,
         }, os.path.join(self.paths['model'], filename)
@@ -161,7 +183,7 @@ class UNetTrainer:
             print(f'Checkpoint {checkpoint_path} not found.')
             return 0, float('inf')
         self.model.load_state_dict(checkpoint['model_weights'])
-        self.optimiser.load_state_dict(checkpoint['optimiser_weights'])
+        self.training_config.optimiser.load_state_dict(checkpoint['optimiser_weights'])
         start_epoch = checkpoint['epoch'] - 1
         best_val_loss = checkpoint['loss']
         self.history = checkpoint['history']

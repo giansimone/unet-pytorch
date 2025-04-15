@@ -2,14 +2,15 @@
 Module to create the dataset for training the U-Net.
 """
 import os
-from glob import glob
+import glob
+import dataclasses
 
 import torch
 from torch.utils.data import Dataset, DataLoader
 from sklearn.model_selection import train_test_split
 from skimage import io
 
-from unet.utils import im_to_tensor
+from unet_pytorch.utils import im_to_tensor
 
 
 class SegmentationDataset(Dataset):
@@ -47,6 +48,7 @@ class SegmentationDataset(Dataset):
         return x, y
 
 
+@dataclasses.dataclass(init=False)
 class UNetDataset():
     """Dataset class for the U-Net model."""
 
@@ -70,8 +72,6 @@ class UNetDataset():
         )
         self.train_dataset = SegmentationDataset(train_inputs, train_targets)
         self.val_dataset = SegmentationDataset(test_inputs, test_targets)
-        self.train_loader = None
-        self.val_loader = None
 
     def _get_filenames(self, base_path: str, ext: str) -> list:
         """Get a list of files with a specific extension.
@@ -82,34 +82,46 @@ class UNetDataset():
         Returns:
             List of filenames with the desired extension.
         """
-        filenames = glob(os.path.join(base_path, '*.' + ext))
+        filenames = glob.glob(os.path.join(base_path, '*.' + ext))
         filenames.sort()
         return filenames
 
-    def set_train_loader(self, batch_size: int) -> None:
-        """Get the training data loader.
-        
+    @property
+    def get_train_dataset(self) -> SegmentationDataset:
+        """Get the training dataset."""
+        return self.train_dataset
+
+    @property
+    def get_val_dataset(self) -> SegmentationDataset:
+        """Get the validation dataset."""
+        return self.val_dataset
+
+
+class UNetDataLoader:
+    """Data loader for the U-Net model."""
+
+    def __init__(self, dataset: UNetDataset, batch_size: int, num_workers: int = 0):
+        """Initialise the U-Net data loader.
+
         Args:
+            dataset: Dataset object containing the training and validation datasets.
             batch_size: Batch size for the data loader.
-        Returns:
-            DataLoader for the training dataset.
+            num_workers: Number of workers for the data loader.
         """
-        self.train_loader =  DataLoader(
-            self.train_dataset,
+        self.dataset = dataset
+        self.batch_size = batch_size
+        self.num_workers = num_workers
+        self.train_loader = DataLoader(
+            dataset.train_dataset,
             batch_size=batch_size,
+            num_workers=num_workers,
             shuffle=True,
             pin_memory=True
         )
-
-    def set_val_loader(self, batch_size: int) -> None:
-        """Get the validation data loader.
-        
-        Args:
-            batch_size: Batch size for the data loader.
-        """
         self.val_loader = DataLoader(
-            self.val_dataset,
+            dataset.val_dataset,
             batch_size=batch_size,
+            num_workers=num_workers,
             shuffle=False,
             pin_memory=True
         )

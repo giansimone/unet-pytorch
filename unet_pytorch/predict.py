@@ -4,8 +4,8 @@ Module to make predictions using the U-Net model.
 import numpy as np
 import torch
 
-from unet.model import UNet
-from unet.utils import im_to_tensor
+from unet_pytorch.model import UNet
+from unet_pytorch.utils import im_to_tensor
 
 
 class UNetPredictor:
