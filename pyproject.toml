@@ -1,13 +1,36 @@
 [tool.poetry]
 name = "unet-pytorch"
-version = "0.4.3"
-description = "PyTorch implementation of a convolutional neural network (U-Net)"
+version = "0.4.4"
+description = "PyTorch implementation of a convolutional neural network (U-Net)."
 authors = ["Giansimone Perrino <hello@giansimone.dev>"]
 license = "MIT"
 readme = "README.md"
 repository = "https://github.com/giansimone/unet-pytorch"
 packages = [
     { include = "unet_pytorch" },
+]
+keywords = [
+    "deep-learning",
+    "computer-vision",
+    "image-segmentation",
+    "pytorch",
+    "unet",
+    "semantic-segmentation",
+    "unet-segmentation",
+    "unet-pytorch",
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Topic :: Scientific/Engineering :: Image Recognition",
 ]
 
 [tool.poetry.dependencies]
@@ -23,6 +46,7 @@ scikit-learn = "^1.6.1"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.3.5"
+sphinx = "^8.2.3"
 
 [build-system]
 requires = ["poetry-core"]
