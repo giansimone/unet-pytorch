@@ -1,3 +1,7 @@
+[![Python](https://img.shields.io/pypi/pyversions/unet-pytorch.svg)](https://badge.fury.io/py/unet-pytorch)
+[![PyPI](https://badge.fury.io/py/unet-pytorch.svg)](https://badge.fury.io/py/unet-pytorch)
+[![License](https://img.shields.io/github/license/giansimone/unet-pytorch)](https://github.com/giansimone/unet-pytorch/blob/main/LICENSE)
+
 # unet-pytorch
 PyTorch implementation of a convolutional neural network (U-Net) for semantic segmentation of biomedical images.
 
